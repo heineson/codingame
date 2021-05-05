@@ -46,22 +46,24 @@ fun main(args : Array<String>) {
             }
         }
 
-        val (myF, neutralF, _) = factoriesByOwner(factoriesState.values)
+        val (myF, neutralF, enemyF) = factoriesByOwner(factoriesState.values)
 
-        val randomUntargetedNeutralFactoryId: Int? = neutralF
-                .filter { !(troopsState.values.map { it.targetId }.contains(it.id)) }
+        val target: Int? = if (neutralF.isEmpty())
+            enemyF.map { it.id }.shuffled().firstOrNull()
+        else neutralF
+                .filter { !(troopsState.values.map { v -> v.targetId }.contains(it.id)) }
                 .map { it.id }
                 .shuffled()
                 .firstOrNull()
 
-        val source: Int? = myF.shuffled().firstOrNull()?.id
+        val countToSend: Int = (factoriesState[target]?.cyborgs ?: 0) + 2
 
-        val countToSend: Int = (factoriesState[randomUntargetedNeutralFactoryId]?.cyborgs ?: 0) + 1
+        val source: Int? = myF.filter { it.cyborgs > countToSend + 1 }.shuffled().firstOrNull()?.id
 
         // Write an action using println()
         // To debug: System.err.println("Debug messages...");
-        val op = if (source != null && randomUntargetedNeutralFactoryId != null)
-            "MOVE $source $randomUntargetedNeutralFactoryId $countToSend" else "WAIT"
+        val op = if (source != null && target != null)
+            "MOVE $source $target $countToSend" else "WAIT"
 
         // Any valid action, such as "WAIT" or "MOVE source destination cyborgs"
         println(op)
