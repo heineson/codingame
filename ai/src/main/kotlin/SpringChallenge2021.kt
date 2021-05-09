@@ -11,8 +11,10 @@ data class Action(val type: String, val sourceIndex: Int?, val targetIndex: Int?
         return "$type${if (sourceIndex != null) " $sourceIndex" else ""}${if (targetIndex != null) " $targetIndex" else ""}"
     }
 }
+data class GrowAction(val action: Action, val target: Tree, val growCost: Int)
 
 fun getTargetCell(cells: Map<Int, Cell>, a: Action): Cell { return cells.getValue(a.targetIndex!!) }
+fun getSourceTree(trees: Map<Int, Tree>, a: Action): Tree { return trees.getValue(a.sourceIndex!!) }
 fun getTargetTree(trees: Map<Int, Tree>, a: Action): Tree { return trees.getValue(a.targetIndex!!) }
 fun minDaysUntilCompleted(t: Tree): Int {
     // 4 = 3x grow + complete. If not dormant, action can be taken this day.
@@ -20,6 +22,7 @@ fun minDaysUntilCompleted(t: Tree): Int {
 }
 fun estDaysToCompleteAll(myTrees: Collection<Tree>): Int {
     // Guess there is enough sun points to do 2 actions per day on average = 2 trees per day actioned upon
+    System.err.println("est remaining: ${myTrees.size} trees => ${myTrees.map { minDaysUntilCompleted(it) }.sum() / 2} days")
     return myTrees.map { minDaysUntilCompleted(it) }.sum() / 2
 }
 fun growCost(trees: Map<Int, Tree>, a: Action): Int {
@@ -98,8 +101,8 @@ fun main(args : Array<String>) {
 
         System.err.println("Completable: ${completableTrees.size}, remaining days: $remainingDays")
         var completeAction: Action? = null
-        // Keep at least 3 max sized trees until the last 4 days for getting more sun points
-        if (completableTrees.size > 3 || remainingDays <= 4) {
+        // Keep at least 3 max sized trees until the last 3 days for getting more sun points
+        if (completableTrees.size > 3 || remainingDays <= 3) {
             completeAction = actions.filter { it.type == "COMPLETE" }
                 .sortedByDescending { getTargetCell(cells, it).richness }
                 .firstOrNull()
@@ -109,12 +112,12 @@ fun main(args : Array<String>) {
         // Save sun points on last day for other things than growing
         if (remainingDays != 0) {
             growAction = actions.filter { it.type == "GROW" }
-                .sortedByDescending {
-                    (getTargetTree(trees, it).size + 1) * getTargetCell(
-                        cells,
-                        it
-                    ).richness / growCost(trees, it)
-                }
+                .map { GrowAction(it, getTargetTree(trees, it), growCost(trees, it)) }
+                .sortedWith(compareByDescending<GrowAction> { it.target.size }
+                    .thenByDescending { it.target.getCell(cells).richness }
+                    .thenBy { it.growCost }
+                )
+                .map { it.action }
                 .firstOrNull()
         }
 
