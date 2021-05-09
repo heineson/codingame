@@ -1,7 +1,11 @@
 import java.util.*
 
-data class Cell(val index: Int, val richness: Int, val neighbors: List<Int>)
-data class Tree(val cellIndex: Int, val size: Int, val isMine: Boolean, val isDormant: Boolean)
+data class Cell(val index: Int, val richness: Int, val neighbors: List<Int>) {
+    fun getTree(trees: Map<Int, Tree>): Tree? { return trees[index] }
+}
+data class Tree(val cellIndex: Int, val size: Int, val isMine: Boolean, val isDormant: Boolean) {
+    fun getCell(cells: Map<Int, Cell>): Cell { return cells.getValue(cellIndex) }
+}
 data class Action(val type: String, val sourceIndex: Int?, val targetIndex: Int?) {
     override fun toString(): String {
         return "$type${if (sourceIndex != null) " $sourceIndex" else ""}${if (targetIndex != null) " $targetIndex" else ""}"
@@ -89,18 +93,30 @@ fun main(args : Array<String>) {
         }
         val myTrees = trees.values.filter { it.isMine }
         val seedingCost = myTrees.filter { it.size == 0 }.size
+        val myTreesBySize = myTrees.groupBy { it.size }
+        val completableTrees = myTreesBySize[3]?.filter { !it.isDormant } ?: emptyList()
 
+        System.err.println("Completable: ${completableTrees.size}, remaining days: $remainingDays")
         var completeAction: Action? = null
-        // If just one tree remaining, wait until final turn to complete (to get more sun points)
-        if (myTrees.size > 1 || remainingDays == 0) {
+        // Keep at least 3 max sized trees until the last 4 days for getting more sun points
+        if (completableTrees.size > 3 || remainingDays <= 4) {
             completeAction = actions.filter { it.type == "COMPLETE" }
                 .sortedByDescending { getTargetCell(cells, it).richness }
                 .firstOrNull()
         }
 
-        val growAction = actions.filter { it.type == "GROW" }
-            .sortedByDescending { (getTargetTree(trees, it).size + 1) * getTargetCell(cells, it).richness / growCost(trees, it) }
-            .firstOrNull()
+        var growAction: Action? = null
+        // Save sun points on last day for other things than growing
+        if (remainingDays != 0) {
+            growAction = actions.filter { it.type == "GROW" }
+                .sortedByDescending {
+                    (getTargetTree(trees, it).size + 1) * getTargetCell(
+                        cells,
+                        it
+                    ).richness / growCost(trees, it)
+                }
+                .firstOrNull()
+        }
 
         var seedAction: Action? = null
         if (estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 2) {
