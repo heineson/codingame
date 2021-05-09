@@ -18,6 +18,20 @@ fun estDaysToCompleteAll(myTrees: Collection<Tree>): Int {
     // Guess there is enough sun points to do 2 actions per day on average = 2 trees per day actioned upon
     return myTrees.map { minDaysUntilCompleted(it) }.sum() / 2
 }
+fun growCost(trees: Map<Int, Tree>, a: Action): Int {
+    return growCost(trees.values.filter { it.isMine }, getTargetTree(trees, a))
+}
+fun growCost(myTrees: Collection<Tree>, t: Tree): Int {
+    if (t.size == 3) {
+        System.err.println("growCost: Can't grow a size 3 tree further!")
+    }
+    return when (t.size) {
+        0 -> 1 + myTrees.filter { it.size == 1 }.size
+        1 -> 3 + myTrees.filter { it.size == 2 }.size
+        2 -> 7 + myTrees.filter { it.size == 3 }.size
+        else -> 999
+    }
+}
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -76,15 +90,6 @@ fun main(args : Array<String>) {
         val myTrees = trees.values.filter { it.isMine }
         val seedingCost = myTrees.filter { it.size == 0 }.size
 
-        var seedAction: Action? = null
-        if (estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 3) {
-            seedAction = actions.filter { it.type == "SEED" }
-                // don't seed on lowest richness (1) if I already have more than 2 trees
-                .filter { if (myTrees.size > 2) getTargetCell(cells, it).richness > 1 else true }
-                .sortedByDescending { getTargetCell(cells, it).richness }
-                .firstOrNull()
-        }
-
         var completeAction: Action? = null
         // If just one tree remaining, wait until final turn to complete (to get more sun points)
         if (myTrees.size > 1 || remainingDays == 0) {
@@ -94,10 +99,19 @@ fun main(args : Array<String>) {
         }
 
         val growAction = actions.filter { it.type == "GROW" }
-            .sortedByDescending { (getTargetTree(trees, it).size + 1) * getTargetCell(cells, it).richness}
+            .sortedByDescending { (getTargetTree(trees, it).size + 1) * getTargetCell(cells, it).richness / growCost(trees, it) }
             .firstOrNull()
 
+        var seedAction: Action? = null
+        if (estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 2) {
+            seedAction = actions.filter { it.type == "SEED" }
+                // don't seed on lowest richness (1) if I already have more than 2 trees
+                .filter { if (myTrees.size > 2) getTargetCell(cells, it).richness > 1 else true }
+                .sortedByDescending { getTargetCell(cells, it).richness }
+                .firstOrNull()
+        }
+
         // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT <message>
-        println(completeAction ?: seedAction ?: growAction ?: "WAIT")
+        println(completeAction ?: growAction ?: seedAction ?: "WAIT")
     }
 }
