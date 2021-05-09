@@ -1,6 +1,4 @@
 import java.util.*
-import java.io.*
-import java.math.*
 
 data class Cell(val index: Int, val richness: Int, val neighbors: List<Int>)
 data class Tree(val cellIndex: Int, val size: Int, val isMine: Boolean, val isDormant: Boolean)
@@ -10,6 +8,16 @@ data class Action(val type: String, val sourceIndex: Int?, val targetIndex: Int?
     }
 }
 
+fun getTargetCell(cells: Map<Int, Cell>, a: Action): Cell { return cells.getValue(a.targetIndex!!) }
+fun getTargetTree(trees: Map<Int, Tree>, a: Action): Tree { return trees.getValue(a.targetIndex!!) }
+fun minDaysUntilCompleted(t: Tree): Int {
+    // 4 = 3x grow + complete. If not dormant, action can be taken this day.
+    return 4 - t.size - if (t.isDormant) 0 else 1
+}
+fun estDaysToCompleteAll(myTrees: Collection<Tree>): Int {
+    // Guess there is enough sun points to do 2 actions per day on average = 2 trees per day actioned upon
+    return myTrees.map { minDaysUntilCompleted(it) }.sum() / 2
+}
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -37,6 +45,7 @@ fun main(args : Array<String>) {
         val actions = mutableListOf<Action>()
 
         val day = input.nextInt() // the game lasts 24 days: 0-23
+        val remainingDays = 23 - day // days remaining, excluding current
         val nutrients = input.nextInt() // the base score you gain from the next COMPLETE action
         val sun = input.nextInt() // your sun points
         val score = input.nextInt() // your current score
@@ -64,16 +73,31 @@ fun main(args : Array<String>) {
                 "WAIT" -> actions.add(Action("WAIT", null, null))
             }
         }
+        val myTrees = trees.values.filter { it.isMine }
+        val seedingCost = myTrees.filter { it.size == 0 }.size
 
-        val completeAction = actions.filter { it.type == "COMPLETE" }
-            .sortedByDescending { cells[it.targetIndex!!]?.richness ?: 0 }
-            .firstOrNull()
+        var seedAction: Action? = null
+        if (estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 3) {
+            seedAction = actions.filter { it.type == "SEED" }
+                // don't seed on lowest richness (1) if I already have more than 2 trees
+                .filter { if (myTrees.size > 2) getTargetCell(cells, it).richness > 1 else true }
+                .sortedByDescending { getTargetCell(cells, it).richness }
+                .firstOrNull()
+        }
+
+        var completeAction: Action? = null
+        // If just one tree remaining, wait until final turn to complete (to get more sun points)
+        if (myTrees.size > 1 || remainingDays == 0) {
+            completeAction = actions.filter { it.type == "COMPLETE" }
+                .sortedByDescending { getTargetCell(cells, it).richness }
+                .firstOrNull()
+        }
 
         val growAction = actions.filter { it.type == "GROW" }
-            .sortedByDescending { trees[it.targetIndex!!]?.size }
+            .sortedByDescending { (getTargetTree(trees, it).size + 1) * getTargetCell(cells, it).richness}
             .firstOrNull()
 
         // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT <message>
-        println(completeAction ?: growAction ?: "WAIT")
+        println(completeAction ?: seedAction ?: growAction ?: "WAIT")
     }
 }
