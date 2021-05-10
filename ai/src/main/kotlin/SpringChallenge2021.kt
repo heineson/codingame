@@ -122,8 +122,11 @@ fun main(args : Array<String>) {
         }
 
         var seedAction: Action? = null
-        if (estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 2) {
+        val shouldSeed: Boolean = if (day < 2) seedingCost == 0 else estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 2
+        if (shouldSeed) {
             seedAction = actions.filter { it.type == "SEED" }
+                // only seed from trees of size >= 2
+                .filter { getSourceTree(trees, it).size > 1 }
                 // don't seed on lowest richness (1) if I already have more than 2 trees
                 .filter { if (myTrees.size > 2) getTargetCell(cells, it).richness > 1 else true }
                 .sortedByDescending { getTargetCell(cells, it).richness }
