@@ -122,7 +122,7 @@ fun main(args : Array<String>) {
         }
 
         var seedAction: Action? = null
-        val shouldSeed: Boolean = if (day < 2) seedingCost == 0 else estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 2
+        val shouldSeed: Boolean = if (day < 2) seedingCost == 0 else estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 1
         if (shouldSeed) {
             seedAction = actions.filter { it.type == "SEED" }
                 // only seed from trees of size >= 2
