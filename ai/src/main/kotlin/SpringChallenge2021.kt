@@ -2,6 +2,9 @@ import java.util.*
 
 data class Cell(val index: Int, val richness: Int, val neighbors: List<Int>) {
     fun getTree(trees: Map<Int, Tree>): Tree? { return trees[index] }
+    fun getNeighbouringTrees(trees: Map<Int, Tree>): List<Tree> {
+        return neighbors.map { trees[it] }.filter { it != null }.map { it!! }
+    }
 }
 data class Tree(val cellIndex: Int, val size: Int, val isMine: Boolean, val isDormant: Boolean) {
     fun getCell(cells: Map<Int, Cell>): Cell { return cells.getValue(cellIndex) }
@@ -122,14 +125,17 @@ fun main(args : Array<String>) {
         }
 
         var seedAction: Action? = null
-        val shouldSeed: Boolean = if (day < 2) seedingCost == 0 else estDaysToCompleteAll(myTrees) < remainingDays && seedingCost <= 1
+        val shouldSeed: Boolean = if (day < 2) seedingCost == 0 else estDaysToCompleteAll(myTrees) < remainingDays && seedingCost == 0
         if (shouldSeed) {
             seedAction = actions.filter { it.type == "SEED" }
                 // only seed from trees of size >= 2
                 .filter { getSourceTree(trees, it).size > 1 }
                 // don't seed on lowest richness (1) if I already have more than 2 trees
-                .filter { if (myTrees.size > 2) getTargetCell(cells, it).richness > 1 else true }
-                .sortedByDescending { getTargetCell(cells, it).richness }
+                //.filter { if (myTrees.size > 2) getTargetCell(cells, it).richness > 1 else true }
+                //.sortedByDescending { getTargetCell(cells, it).richness }
+                    .sortedWith(compareBy<Action> { getTargetCell(cells, it).getNeighbouringTrees(trees).size }
+                            .thenByDescending { getTargetCell(cells, it).richness }
+                    )
                 .firstOrNull()
         }
 
