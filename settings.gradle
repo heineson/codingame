@@ -1,3 +1,4 @@
 rootProject.name = 'codingame'
 
 include 'ai'
+include 'puzzles'
